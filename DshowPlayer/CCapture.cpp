@@ -18,9 +18,17 @@ extern "C"
 #include "libavutil/imgutils.h"
 }
 
+#include <libyuv.h>
 
-//static struct SwsContext *img_convert_ctx;  //主要用于视频图像的转换
-
+/*
+ * 测试发现软解码延迟300多毫秒，硬解码延迟600多毫秒
+ * 机器配置：
+ * 处理器	英特尔 Core i5-8600K @ 3.60GHz 六核
+ * 内存	8 GB ( 十铨 DDR4 3000MHz )
+ * 显卡	Nvidia GeForce GTX 1650 SUPER ( 4 GB / 影驰 )
+ */
+//#define Enable_Hardcode
+//#define Enable_h264_qsv
 
 
 CCapture::CCapture(QObject *parent)
@@ -186,8 +194,8 @@ CaptureVideo::CaptureVideo(QObject *parent)
 	m_yuvFrame = av_frame_alloc();
 	//m_rgbFrame = av_frame_alloc();
 
-	//img_convert_ctx = sws_getContext(m_vDecodeCtx->width, m_vDecodeCtx->height,
-	//	m_vDecodeCtx->pix_fmt, m_vDecodeCtx->width, m_vDecodeCtx->height,
+	//m_swsCtx = sws_getContext(m_vDecodeCtx->width, m_vDecodeCtx->height,
+	//	m_vDecodeCtx->pix_fmt, m_dst, m_vDecodeCtx->height,
 	//	AV_PIX_FMT_RGB32, SWS_BICUBIC, NULL, NULL, NULL);
 
 
@@ -683,7 +691,18 @@ void CaptureVideo::process()
 
 bool CaptureVideo::initDecoder()
 {
-	AVCodec* decoder = avcodec_find_decoder(AV_CODEC_ID_H264);
+    AVCodec* decoder = nullptr;
+#ifdef Enable_Hardcode
+#ifdef Enable_h264_qsv
+    decoder = avcodec_find_decoder_by_name("h264_qsv");
+#else Enable_h264_cuvid
+    decoder = avcodec_find_decoder_by_name("h264_cuvid");
+#endif // Enable_h264_cuvid
+#else
+    decoder = avcodec_find_decoder(AV_CODEC_ID_H264);
+#endif // Enable_Hardcode
+
+
 	if (decoder == nullptr)
 	{
 		return false;
@@ -698,10 +717,15 @@ bool CaptureVideo::initDecoder()
 
 	m_vDecodeCtx->width = 1920;
 	m_vDecodeCtx->height = 1080;
-	// TODO: 改成从dshow获取
-	m_vDecodeCtx->pix_fmt = AV_PIX_FMT_YUVJ420P;
 	m_vDecodeCtx->codec_id = AV_CODEC_ID_H264;
+#ifdef Enable_Hardcode
+    m_vDecodeCtx->pix_fmt = *decoder->pix_fmts;
+#else
+	// TODO: 改成从dshow获取
+    m_vDecodeCtx->pix_fmt = AV_PIX_FMT_YUVJ420P;
+#endif // Enable_Hardcode
 
+    // 硬编码：avcodec_open2后m_vDecodeCtx->pix_fmt从AV_PIX_FMT_CUDA变成了AV_PIX_FMT_NV12 为什么？
 	int err = avcodec_open2(m_vDecodeCtx, decoder, nullptr);  // 打开解码器
 	if (0 != err)   // 打开解码器错误
 	{
@@ -722,19 +746,49 @@ bool CaptureVideo::initDecoder()
 	return true;
 }
 
-bool CaptureVideo::yuv2Rgb()
+bool CaptureVideo::yuv2Rgb(uchar *out, int dstWinWidth, int dstWinHeight)
 {
-	// yuv转rgb
-	int h = sws_scale(m_swsCtx,
-		(uint8_t const * const *)m_yuvFrame->data, m_yuvFrame->linesize,
-		0, m_vDecodeCtx->height,
-		m_rgbFrame->data, m_rgbFrame->linesize);
+ //   m_swsCtx = sws_getContext(m_vDecodeCtx->width, m_vDecodeCtx->height, m_vDecodeCtx->pix_fmt,
+ //       dstWinWidth, dstWinHeight, AV_PIX_FMT_RGB32,
+ //       SWS_BICUBIC, NULL, NULL, NULL);
+ //   if (!m_swsCtx)
+ //   {
+ //       qWarning() << "sws_getContext failed";
+ //       return false;
+ //   }
 
+ //   uint8_t *data[AV_NUM_DATA_POINTERS] = { nullptr };
+ //   data[0] = out;     // 第一位输出RGB
+ //   int lineSize[AV_NUM_DATA_POINTERS] = { 0 };
+ //   lineSize[0] = dstWinWidth * 4;
 
-	QImage img(m_rgbFrameBuf, m_vDecodeCtx->width, m_vDecodeCtx->height, QImage::Format_RGB32);
-	emit updateImage(QPixmap::fromImage(img));
+	//int h = sws_scale(m_swsCtx,
+	//	(uint8_t const * const *)m_yuvFrame->data, m_yuvFrame->linesize,
+	//	0, m_vDecodeCtx->height,
+ //       data, lineSize);
 
-	return false;
+ //   sws_freeContext(m_swsCtx);
+
+    if (!m_yuvFrame->data[0])
+    {
+        return 0;
+    }
+    if (m_yuvFrame->linesize[0] == 0)
+    {
+        return 0;
+    }
+    size_t sample_size = 1920 * 1080 * 3 / 2;
+    uint8_t *sample = new uint8_t[sample_size];
+    memcpy_s(sample, 1920 * 1080, m_yuvFrame->data[0], 1920 * 1080);
+    memcpy_s(sample + 1920 * 1080, 1920 * 1080 / 4, m_yuvFrame->data[1], 1920 * 1080 / 4);
+    memcpy_s(sample + 1920 * 1080 * 5 / 4, 1920 * 1080 / 4, m_yuvFrame->data[2], 1920 * 1080 / 4);
+    uint8_t *rgbBuf = new uint8_t[1920 * 1080 * 4];
+    int r = libyuv::ConvertToARGB(sample, sample_size, rgbBuf, 1920 * 4, 0, 0, 1920, 1080, 1920, 1080, (libyuv::RotationMode)0, 0);
+    delete[] rgbBuf;
+
+	//QImage img(m_rgbFrameBuf, m_vDecodeCtx->width, m_vDecodeCtx->height, QImage::Format_RGB32);
+	//emit updateImage(QPixmap::fromImage(img));
+	return /*h >*/ 0;
 }
 
 STDMETHODIMP CaptureVideo::SampleCB(double SampleTime, IMediaSample * pSample) {
@@ -763,17 +817,16 @@ STDMETHODIMP CaptureVideo::BufferCB(double dblSampleTime, BYTE * pBuffer, long l
 	int re = avcodec_send_packet(m_vDecodeCtx, &pkt);
 	if (0 != re) // 如果发送失败
 	{
-		parseError(re);
+        qDebug() << QString("avcodec_send_packet failed, %1").arg(parseError(re));
 		return 0;
 	}
 	re = avcodec_receive_frame(m_vDecodeCtx, m_yuvFrame);
 	if (0 != re) // 如果解码失败
 	{
-		parseError(re);
+        qDebug() << QString("avcodec_receive_frame failed, %1").arg(parseError(re));
 		return 0;
 	}
-
-
+    //av_hwframe_transfer_data
 	return 0;
 }
 

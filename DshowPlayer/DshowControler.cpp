@@ -3,6 +3,7 @@
 #include "common.h"
 #include <QDebug>
 #include <QThread>
+#include <QTime>
 
 extern "C"
 {
@@ -30,7 +31,7 @@ DshowControler::DshowControler(QObject *parent)
 	QThread *cvThread = new QThread;
 	m_pCaptureVideo = new CaptureVideo();
 	m_pCaptureVideo->moveToThread(cvThread);
-	connect(cvThread, &QThread::started, m_pCaptureVideo, &CaptureVideo::process);
+	//connect(cvThread, &QThread::started, m_pCaptureVideo, &CaptureVideo::process);
 	connect(m_pCaptureVideo, &CaptureVideo::updateImage, this, &DshowControler::updateImage);
 	connect(m_pCaptureVideo, &CaptureVideo::finished, m_pCaptureVideo, &CaptureVideo::deleteLater);
 	connect(m_pCaptureVideo, &CaptureVideo::finished, cvThread, &QThread::quit);
@@ -212,6 +213,41 @@ void DshowControler::startPlay()
 
 void DshowControler::process()
 {
+    startPlay();
 
+    QTime t;
 
+    int w = 1920;
+    int h = 1080;
+
+    while (!m_stopped)
+    {
+        if (!m_pCaptureVideo)
+        {
+            QThread::msleep(40);
+            continue;
+        }
+        if (m_duration <= 0)
+        {
+            //m_duration = 1000 / m_pCaptureVideo->getFps();
+            m_duration = 1000 / 30;
+        }
+
+        t.restart();
+        if (!m_paused /*&& m_wid->isVisible()*/)
+        {
+            QImage img(w, h, QImage::Format_RGB32);
+            if (m_pCaptureVideo->yuv2Rgb(img.bits(), w, h))
+            {
+                emit updateImage(QPixmap::fromImage(img));
+            }
+        }
+
+        int deadline = m_duration - t.elapsed();
+        if (deadline > 0)
+        {
+            QThread::msleep(deadline);
+        }
+    }
+    qInfo() << "DshowControler finished";
 }

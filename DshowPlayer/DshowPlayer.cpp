@@ -13,7 +13,7 @@ DshowPlayer::DshowPlayer(QWidget *parent)
 	QThread *thread = new QThread;
 	DshowControler *dc = new DshowControler();
 	dc->moveToThread(thread);
-	connect(thread, &QThread::started, dc, &DshowControler::startPlay);
+	connect(thread, &QThread::started, dc, &DshowControler::process);
 	connect(dc, &DshowControler::finished, thread, &QThread::quit);
 	connect(dc, &DshowControler::finished, dc, &DshowControler::deleteLater);
 	connect(thread, &QThread::finished, thread, &QThread::deleteLater);

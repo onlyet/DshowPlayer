@@ -54,4 +54,8 @@ private:
 
 	int m_dstWinWidth;	// 目标窗口宽度
 	int m_dstWinHeight;	// 目标窗口高度
+
+    bool m_paused = false;
+    bool m_stopped = false;
+    int m_duration;
 };

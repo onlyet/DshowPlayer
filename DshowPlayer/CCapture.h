@@ -30,6 +30,7 @@ extern "C"
 {
 	struct AVCodecContext;
 	struct AVFrame;
+    struct SwsContext;
 }
 
 class CaptureVideo : public QObject, public ISampleGrabberCB
@@ -74,7 +75,7 @@ public:
 
 	bool initDecoder();
 
-	bool yuv2Rgb();
+	bool yuv2Rgb(uchar *out, int outWidth, int outHeigh);
 
 private:
 	HRESULT InitializeEnv();				// initialize environment
@@ -122,8 +123,8 @@ private:
 	SwsContext *m_swsCtx = nullptr;
 
 
-	//int m_dstWinWidth;	// 目标窗口宽度
-	//int m_dstWinHeight;	// 目标窗口高度
+	int m_dstWinWidth;	// 目标窗口宽度
+	int m_dstWinHeight;	// 目标窗口高度
 
 public:
 	bool m_bPreview;

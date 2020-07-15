@@ -40,16 +40,16 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir)FFmpeg\inc;$(SolutionDir)dshow\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)FFmpeg\lib;$(SolutionDir)dshow\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)FFmpeg\inc;$(SolutionDir)dshow\include;$(SolutionDir)libyuv\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)FFmpeg\lib;$(SolutionDir)dshow\lib;$(SolutionDir)libyuv;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(SolutionDir)FFmpeg\inc;$(SolutionDir)dshow\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)FFmpeg\inc;$(SolutionDir)dshow\include;$(SolutionDir)libyuv\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)FFmpeg\lib;$(SolutionDir)dshow\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Link>
-      <AdditionalDependencies>strmbasd.lib;wmcodecdspuuid.lib;avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;postproc.lib;swresample.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>strmbasd.lib;wmcodecdspuuid.lib;avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;postproc.lib;swresample.lib;swscale.lib;yuvd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>
