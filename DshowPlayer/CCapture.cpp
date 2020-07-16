@@ -6,6 +6,7 @@
 #include <Wmcodecdsp.h>
 
 #include <QDebug>
+#include <QTime>
 
 extern "C"
 {
@@ -30,6 +31,13 @@ extern "C"
 //#define Enable_Hardcode
 //#define Enable_h264_qsv
 
+/*
+ * libyuv和sws_scale占用CPU都是30%左右
+ * 耗时：libyuv：1毫秒，sws_scale：2毫秒
+ * 机器配置：
+ * I5-9400 16G内存
+ */
+#define Enable_libyuv
 
 CCapture::CCapture(QObject *parent)
 	: QObject(parent)
@@ -748,47 +756,58 @@ bool CaptureVideo::initDecoder()
 
 bool CaptureVideo::yuv2Rgb(uchar *out, int dstWinWidth, int dstWinHeight)
 {
- //   m_swsCtx = sws_getContext(m_vDecodeCtx->width, m_vDecodeCtx->height, m_vDecodeCtx->pix_fmt,
- //       dstWinWidth, dstWinHeight, AV_PIX_FMT_RGB32,
- //       SWS_BICUBIC, NULL, NULL, NULL);
- //   if (!m_swsCtx)
- //   {
- //       qWarning() << "sws_getContext failed";
- //       return false;
- //   }
+    uint8_t *data[AV_NUM_DATA_POINTERS] = { nullptr };
+    data[0] = out;     // 第一位输出RGB
+    int lineSize[AV_NUM_DATA_POINTERS] = { 0 };
+    lineSize[0] = dstWinWidth * 4;
 
- //   uint8_t *data[AV_NUM_DATA_POINTERS] = { nullptr };
- //   data[0] = out;     // 第一位输出RGB
- //   int lineSize[AV_NUM_DATA_POINTERS] = { 0 };
- //   lineSize[0] = dstWinWidth * 4;
+#ifdef Enable_libyuv
+	if (!m_yuvFrame->data[0])
+	{
+		return 0;
+	}
+	if (m_yuvFrame->linesize[0] == 0)
+	{
+		return 0;
+	}
+	QTime t = QTime::currentTime();
+	int r2 = libyuv::I420ToARGB(m_yuvFrame->data[0], 1920, m_yuvFrame->data[1], 1920 / 2, m_yuvFrame->data[2], 1920 / 2, data[0], 1920 * 4, 1920, 1080);
+	qDebug() << "libyuv::I420ToARGB time: " << t.elapsed();
+	return 1;
+#else
+	m_swsCtx = sws_getContext(m_vDecodeCtx->width, m_vDecodeCtx->height, m_vDecodeCtx->pix_fmt,
+		dstWinWidth, dstWinHeight, AV_PIX_FMT_RGB32,
+		SWS_BICUBIC, NULL, NULL, NULL);
+	if (!m_swsCtx)
+	{
+		qWarning() << "sws_getContext failed";
+		return false;
+	}
+	QTime t2 = QTime::currentTime();
+	int h = sws_scale(m_swsCtx,
+		(uint8_t const * const *)m_yuvFrame->data, m_yuvFrame->linesize,
+		0, m_vDecodeCtx->height,
+		data, lineSize);
+	qDebug() << "sws_scale time: " << t2.elapsed();
 
-	//int h = sws_scale(m_swsCtx,
-	//	(uint8_t const * const *)m_yuvFrame->data, m_yuvFrame->linesize,
-	//	0, m_vDecodeCtx->height,
- //       data, lineSize);
+	sws_freeContext(m_swsCtx);
 
- //   sws_freeContext(m_swsCtx);
+	return h > 0;
+#endif // !Enable_libyuv
 
-    if (!m_yuvFrame->data[0])
-    {
-        return 0;
-    }
-    if (m_yuvFrame->linesize[0] == 0)
-    {
-        return 0;
-    }
-    size_t sample_size = 1920 * 1080 * 3 / 2;
-    uint8_t *sample = new uint8_t[sample_size];
-    memcpy_s(sample, 1920 * 1080, m_yuvFrame->data[0], 1920 * 1080);
-    memcpy_s(sample + 1920 * 1080, 1920 * 1080 / 4, m_yuvFrame->data[1], 1920 * 1080 / 4);
-    memcpy_s(sample + 1920 * 1080 * 5 / 4, 1920 * 1080 / 4, m_yuvFrame->data[2], 1920 * 1080 / 4);
-    uint8_t *rgbBuf = new uint8_t[1920 * 1080 * 4];
-    int r = libyuv::ConvertToARGB(sample, sample_size, rgbBuf, 1920 * 4, 0, 0, 1920, 1080, 1920, 1080, (libyuv::RotationMode)0, 0);
-    delete[] rgbBuf;
+	// yuvj420转argb
+    //size_t sample_size = 1920 * 1080 * 3 / 2;
+    //uint8_t *sample = new uint8_t[sample_size];
+    //memcpy_s(sample, 1920 * 1080, m_yuvFrame->data[0], 1920 * 1080);
+    //memcpy_s(sample + 1920 * 1080, 1920 * 1080 / 4, m_yuvFrame->data[1], 1920 * 1080 / 4);
+    //memcpy_s(sample + 1920 * 1080 * 5 / 4, 1920 * 1080 / 4, m_yuvFrame->data[2], 1920 * 1080 / 4);
+    //uint8_t *rgbBuf = new uint8_t[1920 * 1080 * 4];
+    //int r = libyuv::ConvertToARGB(sample, sample_size, rgbBuf, 1920 * 4, 0, 0, 1920, 1080, 1920, 1080, (libyuv::RotationMode)0, 0);
+
+    //delete[] rgbBuf;
 
 	//QImage img(m_rgbFrameBuf, m_vDecodeCtx->width, m_vDecodeCtx->height, QImage::Format_RGB32);
 	//emit updateImage(QPixmap::fromImage(img));
-	return /*h >*/ 0;
 }
 
 STDMETHODIMP CaptureVideo::SampleCB(double SampleTime, IMediaSample * pSample) {
