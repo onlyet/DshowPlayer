@@ -9,6 +9,8 @@
 #include <Ks.h>
 #include <KsProxy.h>
 
+#include "D3DVidRender.h"
+
 class CCapture : public QObject
 {
 	Q_OBJECT
@@ -78,6 +80,9 @@ public:
 
 	bool yuv2Rgb(uchar *out, int outWidth, int outHeigh);
 
+    bool initD3D_NV12(HWND hwnd, int img_width, int img_height);
+    bool initD3D_YUVJ420P(HWND hwnd, int img_width, int img_height);
+
 private:
 	HRESULT InitializeEnv();				// initialize environment
 	HRESULT BindCaptureFilter();
@@ -126,6 +131,9 @@ private:
 
 	int m_dstWinWidth;	// 目标窗口宽度
 	int m_dstWinHeight;	// 目标窗口高度
+
+    CD3DVidRender m_d3d;
+
 
 public:
 	bool m_bPreview;

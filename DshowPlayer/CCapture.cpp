@@ -21,24 +21,6 @@ extern "C"
 
 #include <libyuv.h>
 
-/*
- * ²âÊÔ·¢ÏÖÈí½âÂëÑÓ³Ù300¶àºÁÃë£¬Ó²½âÂëÑÓ³Ù600¶àºÁÃë
- * »úÆ÷ÅäÖÃ£º
- * ´¦ÀíÆ÷	Ó¢ÌØ¶û Core i5-8600K @ 3.60GHz ÁùºË
- * ÄÚ´æ	8 GB ( Ê®îý DDR4 3000MHz )
- * ÏÔ¿¨	Nvidia GeForce GTX 1650 SUPER ( 4 GB / Ó°³Û )
- */
-#define Enable_Hardcode
-#define Enable_h264_qsv
-
-/*
- * libyuvºÍsws_scaleÕ¼ÓÃCPU¶¼ÊÇ30%×óÓÒ
- * ºÄÊ±£ºlibyuv£º1ºÁÃë£¬sws_scale£º2ºÁÃë
- * »úÆ÷ÅäÖÃ£º
- * I5-9400 16GÄÚ´æ
- */
-#define Enable_libyuv
-
 CCapture::CCapture(QObject *parent)
 	: QObject(parent)
 {
@@ -727,7 +709,7 @@ bool CaptureVideo::initDecoder()
 	m_vDecodeCtx->height = 1080;
 	m_vDecodeCtx->codec_id = AV_CODEC_ID_H264;
 	//m_vDecodeCtx->flags |= AVFMT_FLAG_NOBUFFER;
-	//m_vDecodeCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
+	m_vDecodeCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
 	m_vDecodeCtx->thread_type = 0;
 
 #ifdef Enable_Hardcode
@@ -760,6 +742,31 @@ bool CaptureVideo::initDecoder()
 
 bool CaptureVideo::yuv2Rgb(uchar *out, int dstWinWidth, int dstWinHeight)
 {
+    if (m_yuvFrame->linesize[0] == 0)
+    {
+        return 0;
+    }
+
+#ifdef Enable_D3dRender
+#ifdef Enable_Hardcode
+    BYTE *pNv12 = new BYTE[1920 * 1080 * 3];
+    memset(pNv12, 0, 1920 * 1080 * 3);
+    memcpy_s(pNv12, 1920 * 1080, m_yuvFrame->data[0], 1920 * 1080);
+    memcpy_s(pNv12 + 1920 * 1080, 1920 * 1080 / 2, m_yuvFrame->data[1], 1920 * 1080 / 2);
+    m_d3d.Render_NV12(pNv12, 1920, 1080);
+    delete[] pNv12;
+    return true;
+#else
+    BYTE *pYUV = new BYTE[1920 * 1080 * 3];
+    memcpy(pYUV, m_yuvFrame->data[0], 1920 * 1080);
+    memcpy(pYUV + 1920 * 1080, m_yuvFrame->data[1], 1920 * 1080 / 4);
+    memcpy(pYUV + 1920 * 1080 * 5 / 4, m_yuvFrame->data[2], 1920 * 1080 / 4);
+    m_d3d.Render_YUV(pYUV, 1920, 1080);
+    delete[] pYUV;
+    return true;
+#endif // !Enable_Hardcode
+#endif // Enable_D3dRender
+
     uint8_t *data[AV_NUM_DATA_POINTERS] = { nullptr };
     data[0] = out;     // µÚÒ»Î»Êä³öRGB
     int lineSize[AV_NUM_DATA_POINTERS] = { 0 };
@@ -812,6 +819,18 @@ bool CaptureVideo::yuv2Rgb(uchar *out, int dstWinWidth, int dstWinHeight)
 
 	//QImage img(m_rgbFrameBuf, m_vDecodeCtx->width, m_vDecodeCtx->height, QImage::Format_RGB32);
 	//emit updateImage(QPixmap::fromImage(img));
+}
+
+bool CaptureVideo::initD3D_NV12(HWND hwnd, int img_width, int img_height)
+{
+    m_d3d.InitD3D_NV12(hwnd, 1920, 1080);
+    return true;
+}
+
+bool CaptureVideo::initD3D_YUVJ420P(HWND hwnd, int img_width, int img_height)
+{
+    m_d3d.InitD3D_YUV(hwnd, 1920, 1080);
+    return true;
 }
 
 STDMETHODIMP CaptureVideo::SampleCB(double SampleTime, IMediaSample * pSample) {

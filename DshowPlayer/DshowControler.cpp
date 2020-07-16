@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QThread>
 #include <QTime>
+#include <QWidget>
 
 extern "C"
 {
@@ -16,9 +17,14 @@ extern "C"
 #include "libavutil/imgutils.h"
 }
 
-DshowControler::DshowControler(QObject *parent)
-	: QObject(parent)
+//#define Enable_Hardcode
+
+DshowControler::DshowControler(QVariantMap params)
+	: QObject(nullptr)
+    //, m_wid(params["wid"].toInt())
 {
+    m_wid = reinterpret_cast<QWidget*>(params["wid"].toInt());
+
 	for (int i = 0; i < NUMELMS(m_rgpmVideo); i++)
 	{
 		m_rgpmVideo[i] = NULL;
@@ -221,6 +227,17 @@ void DshowControler::process()
     int h = 1080;
 	//int w = 720;
 	//int h = 404;
+
+    if (m_pCaptureVideo)
+    {
+#ifdef Enable_D3dRender
+#ifdef Enable_Hardcode
+        m_pCaptureVideo->initD3D_NV12((HWND)m_wid->winId(), w, h);
+#else
+        m_pCaptureVideo->initD3D_YUVJ420P((HWND)m_wid->winId(), w, h);
+#endif // !Enable_Hardcode
+#endif // Enable_D3dRender
+    }
 
     while (!m_stopped)
     {

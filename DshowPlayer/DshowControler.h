@@ -3,7 +3,9 @@
 #include <QObject>
 #include <QStringList>
 #include <QPixmap>
+#include <QVariant>
 
+class QWidget;
 class IMoniker;
 class CaptureVideo;
 
@@ -19,7 +21,7 @@ class DshowControler : public QObject
 	Q_OBJECT
 
 public:
-	DshowControler(QObject *parent = nullptr);
+	DshowControler(QVariantMap params);
 	~DshowControler();
 
 	bool setParams();
@@ -58,4 +60,6 @@ private:
     bool m_paused = false;
     bool m_stopped = false;
     int m_duration = 0;
+
+    QWidget *m_wid = nullptr;
 };

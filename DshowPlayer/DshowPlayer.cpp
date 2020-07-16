@@ -10,8 +10,12 @@ DshowPlayer::DshowPlayer(QWidget *parent)
 	setWindowFlags(Qt::FramelessWindowHint);
 	ui.setupUi(this);
 
+    ui.imgLbl->setUpdatesEnabled(false);
+
 	QThread *thread = new QThread;
-	DshowControler *dc = new DshowControler();
+    QVariantMap params;
+    params.insert("wid", reinterpret_cast<int>(ui.imgLbl));
+	DshowControler *dc = new DshowControler(params);
 	dc->moveToThread(thread);
 	connect(thread, &QThread::started, dc, &DshowControler::process);
 	connect(dc, &DshowControler::finished, thread, &QThread::quit);

@@ -90,4 +90,25 @@ typedef enum {
 	MENU_HIDE
 }PTZ_CONTROL;
 
+/*
+ * 测试发现软解码延迟300多毫秒，硬解码延迟600多毫秒
+ * 机器配置：
+ * 处理器	英特尔 Core i5-8600K @ 3.60GHz 六核
+ * 内存	8 GB ( 十铨 DDR4 3000MHz )
+ * 显卡	Nvidia GeForce GTX 1650 SUPER ( 4 GB / 影驰 )
+ */
+ #define Enable_Hardcode
+ //#define Enable_h264_qsv
+
+ /*
+  * libyuv和sws_scale占用CPU都是30%左右
+  * 耗时：libyuv：1毫秒，sws_scale：2毫秒
+  * 机器配置：
+  * I5-9400 16G内存
+  */
+  //#define Enable_libyuv
+
+// 开启d3d视频渲染，不要sws_scale和setPixmap
+#define Enable_D3dRender
+
 #endif

@@ -47,6 +47,9 @@
     <ClCompile Include="DshowControler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="D3DVidRender.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="DshowPlayer.qrc" />
@@ -64,6 +67,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D3DVidRender.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
