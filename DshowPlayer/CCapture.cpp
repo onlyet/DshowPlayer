@@ -28,8 +28,8 @@ extern "C"
  * 内存	8 GB ( 十铨 DDR4 3000MHz )
  * 显卡	Nvidia GeForce GTX 1650 SUPER ( 4 GB / 影驰 )
  */
-//#define Enable_Hardcode
-//#define Enable_h264_qsv
+#define Enable_Hardcode
+#define Enable_h264_qsv
 
 /*
  * libyuv和sws_scale占用CPU都是30%左右
@@ -726,6 +726,10 @@ bool CaptureVideo::initDecoder()
 	m_vDecodeCtx->width = 1920;
 	m_vDecodeCtx->height = 1080;
 	m_vDecodeCtx->codec_id = AV_CODEC_ID_H264;
+	//m_vDecodeCtx->flags |= AVFMT_FLAG_NOBUFFER;
+	//m_vDecodeCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
+	m_vDecodeCtx->thread_type = 0;
+
 #ifdef Enable_Hardcode
     m_vDecodeCtx->pix_fmt = *decoder->pix_fmts;
 #else
@@ -733,7 +737,7 @@ bool CaptureVideo::initDecoder()
     m_vDecodeCtx->pix_fmt = AV_PIX_FMT_YUVJ420P;
 #endif // Enable_Hardcode
 
-    // 硬编码：avcodec_open2后m_vDecodeCtx->pix_fmt从AV_PIX_FMT_CUDA变成了AV_PIX_FMT_NV12 为什么？
+    // 硬解码：avcodec_open2后m_vDecodeCtx->pix_fmt从AV_PIX_FMT_CUDA变成了AV_PIX_FMT_NV12 为什么？
 	int err = avcodec_open2(m_vDecodeCtx, decoder, nullptr);  // 打开解码器
 	if (0 != err)   // 打开解码器错误
 	{
@@ -770,10 +774,21 @@ bool CaptureVideo::yuv2Rgb(uchar *out, int dstWinWidth, int dstWinHeight)
 	{
 		return 0;
 	}
+#ifdef Enable_Hardcode
+#ifdef Enable_h264_qsv
+	QTime t0 = QTime::currentTime();
+	libyuv::NV12ToARGB(m_yuvFrame->data[0], 1920, m_yuvFrame->data[1], 1920, data[0], 1920 * 4, 1920, 1080);
+	qDebug() << "libyuv::NV12ToARGB time: " << t0.elapsed();
+#endif // !Enable_h264_qsv
+#else
+
 	QTime t = QTime::currentTime();
 	int r2 = libyuv::I420ToARGB(m_yuvFrame->data[0], 1920, m_yuvFrame->data[1], 1920 / 2, m_yuvFrame->data[2], 1920 / 2, data[0], 1920 * 4, 1920, 1080);
+	//int r2 = libyuv::I420ToARGB(m_yuvFrame->data[0], 1920, m_yuvFrame->data[1], 1920 / 2, m_yuvFrame->data[2], 1920 / 2, data[0], 720 * 4, 720, 404);
 	qDebug() << "libyuv::I420ToARGB time: " << t.elapsed();
+#endif // !Enable_Hardcode
 	return 1;
+
 #else
 	m_swsCtx = sws_getContext(m_vDecodeCtx->width, m_vDecodeCtx->height, m_vDecodeCtx->pix_fmt,
 		dstWinWidth, dstWinHeight, AV_PIX_FMT_RGB32,
@@ -795,17 +810,6 @@ bool CaptureVideo::yuv2Rgb(uchar *out, int dstWinWidth, int dstWinHeight)
 	return h > 0;
 #endif // !Enable_libyuv
 
-	// yuvj420转argb
-    //size_t sample_size = 1920 * 1080 * 3 / 2;
-    //uint8_t *sample = new uint8_t[sample_size];
-    //memcpy_s(sample, 1920 * 1080, m_yuvFrame->data[0], 1920 * 1080);
-    //memcpy_s(sample + 1920 * 1080, 1920 * 1080 / 4, m_yuvFrame->data[1], 1920 * 1080 / 4);
-    //memcpy_s(sample + 1920 * 1080 * 5 / 4, 1920 * 1080 / 4, m_yuvFrame->data[2], 1920 * 1080 / 4);
-    //uint8_t *rgbBuf = new uint8_t[1920 * 1080 * 4];
-    //int r = libyuv::ConvertToARGB(sample, sample_size, rgbBuf, 1920 * 4, 0, 0, 1920, 1080, 1920, 1080, (libyuv::RotationMode)0, 0);
-
-    //delete[] rgbBuf;
-
 	//QImage img(m_rgbFrameBuf, m_vDecodeCtx->width, m_vDecodeCtx->height, QImage::Format_RGB32);
 	//emit updateImage(QPixmap::fromImage(img));
 }
@@ -824,34 +828,59 @@ STDMETHODIMP CaptureVideo::BufferCB(double dblSampleTime, BYTE * pBuffer, long l
 
 #endif // __ENABLE_RECORD__
 
-	//qDebug() << "dblSampleTime: " << dblSampleTime;	
+	qDebug() << QString("dblSampleTime: %1, lBufferSize: %2").arg(dblSampleTime).arg(lBufferSize);
 	//return 0;
+
+	//static int s_dropFrame = 8;
+	//if (s_dropFrame > 0)
+	//{
+	//	--s_dropFrame;
+	//	return 0;
+	//}
+
 
 	AVPacket pkt;
 	av_init_packet(&pkt);
 	pkt.data = pBuffer;
 	pkt.size = lBufferSize;
 	pkt.stream_index = 0;
+	
+	QTime t = QTime::currentTime();
+	int re = 1;
+	//while (re)
+	//{
 
-	int re = avcodec_send_packet(m_vDecodeCtx, &pkt);
+	re = avcodec_send_packet(m_vDecodeCtx, &pkt);
 	if (0 != re) // 如果发送失败
 	{
-        qDebug() << QString("avcodec_send_packet failed, %1").arg(parseError(re));
+		qDebug() << QString("avcodec_send_packet failed, %1, pkt.size: %2").arg(parseError(re)).arg(lBufferSize);
 		return 0;
 	}
 	re = avcodec_receive_frame(m_vDecodeCtx, m_yuvFrame);
 	if (0 != re) // 如果解码失败
 	{
-        qDebug() << QString("avcodec_receive_frame failed, %1").arg(parseError(re));
+		qDebug() << QString("avcodec_receive_frame failed, %1, pkt.size: %2").arg(parseError(re)).arg(lBufferSize);
+		//if (AVERROR(EAGAIN) != re)
+		//{
 		return 0;
+		//}
 	}
+	//}
+	//static bool s_singleshot = false;
+	//if (!s_singleshot)
+	//{
+	//	s_singleshot = true;
+	//	avcodec_flush_buffers(m_vDecodeCtx);
+	//}
+	qDebug() << QStringLiteral("解码耗时：%1，frame->pkt_size: %2").arg(t.elapsed()).arg(m_yuvFrame->pkt_size);
+
     //av_hwframe_transfer_data
 	return 0;
 }
 
 void CaptureVideo::StartRecord()
 {
-	m_bRecord = true;
+	//m_bRecord = true;
 	//m_bFileOpen = m_fileRecorder.Open(_T("video.h264"), CFile::modeCreate | CFile::modeWrite | CFile::typeBinary);
 }
 

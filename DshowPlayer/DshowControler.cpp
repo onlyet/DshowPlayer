@@ -219,6 +219,8 @@ void DshowControler::process()
 
     int w = 1920;
     int h = 1080;
+	//int w = 720;
+	//int h = 404;
 
     while (!m_stopped)
     {

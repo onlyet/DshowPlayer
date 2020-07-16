@@ -57,5 +57,5 @@ private:
 
     bool m_paused = false;
     bool m_stopped = false;
-    int m_duration;
+    int m_duration = 0;
 };

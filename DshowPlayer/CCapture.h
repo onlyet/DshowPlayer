@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QPixmap>
+#include <QFile>
 
 #include <dshow.h>
 #include <qedit.h>
@@ -107,11 +108,11 @@ private:
 	IPin *m_pPinInGrabber;
 	//IPin *m_pPinOutGrabber;
 
-#ifdef __ENABLE_RECORD__
-	CFile m_fileRecorder;
+//#ifdef __ENABLE_RECORD__
+	//CFile m_fileRecorder;
 	BOOL m_bFileOpen;
 	BOOL m_bFirstKeyFrame;
-#endif // __ENABLE_RECORD__
+//#endif // __ENABLE_RECORD__
 
 	bool m_bRecord;
 
