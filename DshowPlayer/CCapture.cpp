@@ -467,6 +467,7 @@ HRESULT CaptureVideo::StartPreview()
 		}
 	}
 
+
 	if (m_pMediaControl)
 	{
 		hr = m_pMediaControl->Run();
@@ -476,6 +477,9 @@ HRESULT CaptureVideo::StartPreview()
 		}
 		return hr;
 	}
+
+	//setParams();
+
 	return -1;
 }
 
@@ -705,12 +709,12 @@ bool CaptureVideo::initDecoder()
 	//	return false;
 	//}
 
-	m_vDecodeCtx->width = 1920;
-	m_vDecodeCtx->height = 1080;
-	m_vDecodeCtx->codec_id = AV_CODEC_ID_H264;
+	//m_vDecodeCtx->width = 1920;
+	//m_vDecodeCtx->height = 1080;
 	//m_vDecodeCtx->flags |= AVFMT_FLAG_NOBUFFER;
+	//m_vDecodeCtx->thread_type = 0;
 	m_vDecodeCtx->flags |= AV_CODEC_FLAG_LOW_DELAY;
-	m_vDecodeCtx->thread_type = 0;
+	m_vDecodeCtx->flags |= AV_CODEC_FLAG2_FAST;
 
 #ifdef Enable_Hardcode
     m_vDecodeCtx->pix_fmt = *decoder->pix_fmts;
@@ -749,8 +753,8 @@ bool CaptureVideo::yuv2Rgb(uchar *out, int dstWinWidth, int dstWinHeight)
 
 #ifdef Enable_D3dRender
 #ifdef Enable_Hardcode
-    BYTE *pNv12 = new BYTE[1920 * 1080 * 3];
-    memset(pNv12, 0, 1920 * 1080 * 3);
+    BYTE *pNv12 = new BYTE[1920 * 1080 * 3 / 2];
+    memset(pNv12, 0, 1920 * 1080 * 3 / 2);
     memcpy_s(pNv12, 1920 * 1080, m_yuvFrame->data[0], 1920 * 1080);
     memcpy_s(pNv12 + 1920 * 1080, 1920 * 1080 / 2, m_yuvFrame->data[1], 1920 * 1080 / 2);
     m_d3d.Render_NV12(pNv12, 1920, 1080);
@@ -833,6 +837,51 @@ bool CaptureVideo::initD3D_YUVJ420P(HWND hwnd, int img_width, int img_height)
     return true;
 }
 
+bool CaptureVideo::setParams()
+{
+	HRESULT hr;
+	int nBitrate;
+	WORD wIFrame;
+	BYTE byRCMode, byMinQP, byMaxQP, byFramerate;
+
+	if (NULL == this)
+	{
+		return false;
+	}
+	//// 0是CBR
+	//byRCMode = 0;
+	//byMinQP = 10;
+	//byMaxQP = 40;
+	//nBitrate = 2048;
+	//hr = SetBitrate(MRCONFC_VSTREAM_MASTER, byRCMode, byMinQP, byMaxQP, nBitrate);
+	//if (FAILED(hr))
+	//{
+	//	qWarning() << "set bitrate failed";
+	//}
+
+	//byFramerate = 30;
+	//hr = SetFrameRate(MRCONFC_VSTREAM_MASTER, byFramerate);
+	//if (FAILED(hr))
+	//{
+	//	qWarning() << "set frame rate failed";
+	//}
+
+	//// I帧间距
+	//wIFrame = 90;
+	//hr = SetIDR(MRCONFC_VSTREAM_MASTER, wIFrame);
+	//if (FAILED(hr))
+	//{
+	//	qWarning() << "set iframe failed";
+	//}
+
+	hr = RequestKeyFrame(MRCONFC_VSTREAM_MASTER);
+	if (FAILED(hr))
+	{
+		qWarning() << "request key frame failed";
+	}
+	return true;
+}
+
 STDMETHODIMP CaptureVideo::SampleCB(double SampleTime, IMediaSample * pSample) {
 	return 0;
 }
@@ -850,12 +899,12 @@ STDMETHODIMP CaptureVideo::BufferCB(double dblSampleTime, BYTE * pBuffer, long l
 	qDebug() << QString("dblSampleTime: %1, lBufferSize: %2").arg(dblSampleTime).arg(lBufferSize);
 	//return 0;
 
-	//static int s_dropFrame = 8;
-	//if (s_dropFrame > 0)
-	//{
-	//	--s_dropFrame;
-	//	return 0;
-	//}
+	static int s_dropFrame = 2;
+	if (s_dropFrame > 0)
+	{
+		--s_dropFrame;
+		return 0;
+	}
 
 
 	AVPacket pkt;
@@ -885,12 +934,14 @@ STDMETHODIMP CaptureVideo::BufferCB(double dblSampleTime, BYTE * pBuffer, long l
 		//}
 	}
 	//}
-	//static bool s_singleshot = false;
-	//if (!s_singleshot)
-	//{
-	//	s_singleshot = true;
-	//	avcodec_flush_buffers(m_vDecodeCtx);
-	//}
+
+	static bool s_singleshot = false;
+	if (!s_singleshot)
+	{
+		s_singleshot = true;
+		//avcodec_flush_buffers(m_vDecodeCtx);
+	}
+
 	qDebug() << QStringLiteral("解码耗时：%1，frame->pkt_size: %2").arg(t.elapsed()).arg(m_yuvFrame->pkt_size);
 
     //av_hwframe_transfer_data

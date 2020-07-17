@@ -10,7 +10,14 @@ DshowPlayer::DshowPlayer(QWidget *parent)
 	setWindowFlags(Qt::FramelessWindowHint);
 	ui.setupUi(this);
 
+
+	/*
+	 * 由于使用的native窗口（d3d窗口），所以设置以下两个标志
+	*/
+	// 避免闪屏
     ui.imgLbl->setUpdatesEnabled(false);
+	// 避免程序无响应（鼠标指针转圈）
+	ui.imgLbl->setAttribute(Qt::WA_NativeWindow, true);
 
 	QThread *thread = new QThread;
     QVariantMap params;

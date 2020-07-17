@@ -10,7 +10,8 @@
 #include <KsProxy.h>
 
 #include "D3DVidRender.h"
-
+#include <qnetwork.h>
+#include <qaxobject.h>
 class CCapture : public QObject
 {
 	Q_OBJECT
@@ -82,6 +83,8 @@ public:
 
     bool initD3D_NV12(HWND hwnd, int img_width, int img_height);
     bool initD3D_YUVJ420P(HWND hwnd, int img_width, int img_height);
+
+	bool setParams();
 
 private:
 	HRESULT InitializeEnv();				// initialize environment

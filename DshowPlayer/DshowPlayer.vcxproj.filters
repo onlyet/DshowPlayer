@@ -72,5 +72,8 @@
     <ClInclude Include="D3DVidRender.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Dump.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

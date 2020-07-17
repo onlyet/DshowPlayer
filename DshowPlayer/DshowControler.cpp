@@ -61,11 +61,17 @@ bool DshowControler::setParams()
 		return false;
 	}
 
+	hr = m_pCaptureVideo->RequestKeyFrame(MRCONFC_VSTREAM_MASTER);
+	if (FAILED(hr))
+	{
+		qWarning() << "request key frame failed";
+	}
+
 	// 0ÊÇCBR
 	byRCMode = 0;
 	byMinQP = 10;
 	byMaxQP = 40;
-	nBitrate = 4096;
+	nBitrate = 2048;
 	hr = m_pCaptureVideo->SetBitrate(MRCONFC_VSTREAM_MASTER, byRCMode, byMinQP, byMaxQP, nBitrate);
 	if (FAILED(hr))
 	{
@@ -80,18 +86,14 @@ bool DshowControler::setParams()
 	}
 
 	// IÖ¡¼ä¾à
-	wIFrame = 30;
+	wIFrame = 90;
 	hr = m_pCaptureVideo->SetIDR(MRCONFC_VSTREAM_MASTER, wIFrame);
 	if (FAILED(hr))
 	{
 		qWarning() << "set iframe failed";
 	}
 
-	hr = m_pCaptureVideo->RequestKeyFrame(MRCONFC_VSTREAM_MASTER);
-	if (FAILED(hr))
-	{
-		qWarning() << "request key frame failed";
-	}
+
 	return true;
 }
 
