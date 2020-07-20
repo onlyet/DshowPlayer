@@ -149,7 +149,15 @@ void DshowControler::EnumDevices()
 			if (hr == NOERROR)
 			{
 				QString name = QString::fromUtf16(reinterpret_cast<ushort*>(var.bstrVal));
-				m_devNameList.append(name);
+				if (m_devNameList.contains(name))
+				{
+					int cnt = m_devNameList.count(name);
+					m_devNameList.append(QString("%1#%2").arg(name).arg(QString::number(cnt)));
+				}
+				else
+				{
+					m_devNameList.append(name);
+				}
 				SysFreeString(var.bstrVal);
 
 				if (NULL != pMonikerVideo && (S_OK == pMonikerVideo->IsEqual(pM)))
