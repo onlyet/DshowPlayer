@@ -11,7 +11,7 @@
 
 #include "D3DVidRender.h"
 #include <qnetwork.h>
-#include <qaxobject.h>
+//#include <qaxobject.h>
 class CCapture : public QObject
 {
 	Q_OBJECT
